@@ -5,9 +5,8 @@ import org.apache.camel.json.simple.Jsonable
 import java.io.File
 import groovy.json.JsonSlurper
 
-def scriptFile = '../main/xxx.groovy'
-
 def mu = new MergeUtils()
-mu.convertData('TMC','YMDH')
+//mu.convertData('TMC','YMDH')
 mu.convertData('BMB','YMDH')
 
+mu.buildFileWithDateRange('../../_data/in/BMB/json/hour.json')

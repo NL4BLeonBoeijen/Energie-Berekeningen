@@ -8,7 +8,6 @@ class MergeUtils {
 
     }
 
-    //void convertData(String iFilename, String iInfo) {
     void convertData(String iFolder, String iWhat) {
         def iFolderName = "../../_data/in/" + iFolder + "/data/"
         def iFolderInfo = "../../_data/in/Info/"
@@ -50,5 +49,9 @@ class MergeUtils {
         }
         def json = new JsonBuilder(map);
         new File(iTargetName).write(json.toPrettyString())
+    }
+
+    void buildFileWithDateRange(String iFilename, Date iDateFrom, Date iDateTo){
+
     }
 }
