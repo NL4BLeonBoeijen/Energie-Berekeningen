@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="cpi-mock-mapping-msg">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/cpi-mock-mapping-msg.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

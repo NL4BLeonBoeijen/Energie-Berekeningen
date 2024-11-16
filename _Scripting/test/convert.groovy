@@ -1,12 +1,15 @@
-import com.sap.it.api.mapping.ValueMappingApi
 import com.themuth.energy.MergeUtils
-import org.apache.camel.json.simple.Jsonable
+import java.text.SimpleDateFormat
 
-import java.io.File
-import groovy.json.JsonSlurper
-
+def vFolder = 'TMC'
 def mu = new MergeUtils()
-//mu.convertData('TMC','YMDH')
-mu.convertData('BMB','YMDH')
+mu.loadPrices('../../_data/in/Info/Prijzen/stroomprijzen.json')
+//mu.convertData(vFolder,'YMDH')
+//mu.convertData("$vFolder",'H')
 
-mu.buildFileWithDateRange('../../_data/in/BMB/json/hour.json')
+def dateFormat = "yyyy-MM-dd"
+def dateFrom = Date.parse(dateFormat,'2024-01-01')
+
+mu.splitHoursIntoMonthFile("../../_data/in/$vFolder/json/hour.json")
+mu.buildFileWithDateRange("$vFolder", dateFrom)
+

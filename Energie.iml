@@ -3,10 +3,22 @@
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
     <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/_Scripting/main" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/_Scripting/test" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/_data" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="sap-1.8" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="groovy-2.4.21" level="project" />
+    <orderEntry type="library" name="camel-core-2.24.1" level="project" />
+    <orderEntry type="library" name="cpi-mock-mapping-msg" level="project" />
+    <orderEntry type="library" name="saxon-he-12.5" level="project" />
+    <orderEntry type="library" name="commons-collections4-4.1" level="project" />
+    <orderEntry type="library" name="poi-3.17" level="project" />
+    <orderEntry type="library" name="poi-ooxml-schemas-3.17" level="project" />
+    <orderEntry type="library" name="poi-ooxml-3.17" level="project" />
+    <orderEntry type="library" name="xmlbeans-2.6.0" level="project" />
+    <orderEntry type="library" name="net.sourceforge.jexcelapi.jxl" level="project" />
   </component>
 </module>
