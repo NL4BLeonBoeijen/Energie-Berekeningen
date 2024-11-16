@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 def vFolder = 'TMC'
 def mu = new MergeUtils()
 mu.loadPrices('../../_data/in/Info/Prijzen/stroomprijzen.json')
-//mu.convertData(vFolder,'YMDH')
+//mu.convertData("$vFolder",'YMDH')
 //mu.convertData("$vFolder",'H')
 
 def dateFormat = "yyyy-MM-dd"
