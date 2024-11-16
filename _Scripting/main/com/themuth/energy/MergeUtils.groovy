@@ -17,6 +17,20 @@ import java.text.SimpleDateFormat
 import jxl.*
 import jxl.write.*
 
+class Day {
+    def Day
+    def Consumption = new BigDecimal("0.0")
+    def Production = new BigDecimal("0.0")
+    def Delta = new BigDecimal("0.0")
+    def Costs = new BigDecimal("0.0")
+}
+class Month {
+    def Month
+    def Consumption = new BigDecimal("0.0")
+    def Production = new BigDecimal("0.0")
+    def Delta = new BigDecimal("0.0")
+    def Costs = new BigDecimal("0.0")
+}
 
 class MergeUtils {
     private Map prices = [:]
@@ -260,7 +274,7 @@ class MergeUtils {
         def month = ""
         def csv = ""
         def map = []
-        def newFile = "../../_data/out/$iFolder/" + date.format("yyyy-MM")
+        def newFile = "../../_data/out/$iFolder" + "_" + date.format("yyyy-MM")
 
         for (def i = 0; i < 12; i++) {
             def CalcDate = use(TimeCategory) { date + i.month }
@@ -290,77 +304,211 @@ class MergeUtils {
         new File(iTargetFileCsv).write(csv)
         def aName = newFile.split("/")
         def vName = aName[aName.length - 1].split(".csv")[0]
-        mapToXsl(iFolder, map, vName)
+        mapToXsl(map, vName)
     }
 
-    void mapToXsl(String iFolder, iMap, String iName) {
-        createExcelFile(iFolder, iMap, iName)
+    void mapToXsl(iMap, String iName) {
+        createExcelFile(iMap, iName)
     }
 
-    def createExcelFile(String iFolder, iMap, String iName) {
-        def workbookFilename = "../../_data/out/$iFolder/$iName" + ".xls"
+    def createExcelFile(iMap, String iName) {
+        def aData = []
+        iMap.each { iArray ->
+            iArray.each { row ->
+                aData.push(row)
+            }
+        }
+        aData.sort{ a, b -> a.TIMESTAMP_UTC <=> b.TIMESTAMP_UTC }
+
+        def mapDays = []
+        def mapMonths = []
+
+        def workbookFilename = "../../_data/out/$iName" + ".xls"
 
         new FileOutputStream(new File(workbookFilename)).withStream { stream ->
             def workbook = Workbook.createWorkbook(stream)
-            def sheet = workbook.createSheet('Sheet1', 0)
+
+            def sheetTotals = workbook.createSheet('Totals', 0)
+            def sheetMonths = workbook.createSheet('Months', 1)
+            def sheetDays = workbook.createSheet('Days', 2)
+            def sheet = workbook.createSheet('Hours', 3)
+
+
             def nLine = 0
-            iMap[0][0].each { header ->
-                def aInfo = getColumn(header)
+            aData[0].each { header ->
+                def aInfo = getHourColumn(header)
                 sheet.addCell(new Label(aInfo[0], nLine, aInfo[2]))
             }
-            iMap.each { iArray ->
-                iArray.each { row ->
-                    row.each { cell ->
-                        if (nLine != 0) {
-                            def aInfo = getColumn(cell)
-                            switch (aInfo[1]) {
-                                case "L":
-                                    sheet.addCell(new Label(aInfo[0], nLine, cell.value.toString()))
-                                    break;
-                                case "N":
-                                    if (cell.value != 0) {
-                                        sheet.addCell(new Number(aInfo[0], nLine, cell.value))
-                                    }
-                                    break;
-                            }
-                        }
-                    }
-                    nLine++
+            def vDay = aData[0].TIMESTAMP_lOCAL.toString().substring(0,10)
+            def vMonth = aData[0].TIMESTAMP_lOCAL.toString().substring(0,7)
+            def oDay = new Day()
+            oDay.Day = vDay
+            def oMonth = new Month()
+            oMonth.Month = vMonth
+            aData.each { row ->
+                println(row.TIMESTAMP_lOCAL)
+                //Sum Days
+                if (row.TIMESTAMP_lOCAL.toString().substring(0, 10) != vDay) {
+                    mapDays.push(oDay)
+                    vDay = row.TIMESTAMP_lOCAL.toString().substring(0, 10)
+                    oDay = new Day()
+                    oDay.Day = vDay
                 }
-            }
+                oDay.Day = row.TIMESTAMP_lOCAL.toString().substring(0, 10)
+                oDay.Consumption = oDay.Consumption + row.CONSUMPTION_DELTA_KWH
+                oDay.Production = oDay.Production + row.PRODUCTION_DELTA_KWH
+                oDay.Delta = oDay.Delta + row.DELTA_KWH
+                oDay.Costs = oDay.Costs + row.COSTS
+                //Sum Months
+                if (row.TIMESTAMP_lOCAL.toString().substring(0, 7) != vMonth) {
+                    mapMonths.push(oMonth)
+                    vMonth = row.TIMESTAMP_lOCAL.toString().substring(0, 7)
+                    oMonth = new Month()
+                    oMonth.Month = vMonth
+                }
+                oMonth.Month = row.TIMESTAMP_lOCAL.toString().substring(0, 7)
+                oMonth.Consumption = oMonth.Consumption + row.CONSUMPTION_DELTA_KWH
+                oMonth.Production = oMonth.Production + row.PRODUCTION_DELTA_KWH
+                oMonth.Delta = oMonth.Delta + row.DELTA_KWH
+                oMonth.Costs = oMonth.Costs + row.COSTS
 
-            Formula f
+                row.each { cell ->
+                    def nRow = nLine + 1
+                    def aInfo = getHourColumn(cell)
+                    switch (aInfo[1]) {
+                        case "L":
+                            sheet.addCell(new Label(aInfo[0], nRow, cell.value.toString()))
+                            break;
+                        case "N":
+                            if (cell.value != 0) {
+                                sheet.addCell(new Number(aInfo[0], nRow, cell.value))
+                            }
+                            break;
+                    }
+                }
+                nLine++
+            }
+            mapDays.push(oDay)
+            mapMonths.push(oMonth)
+
             //Totals
             def nTotalLine = nLine + 2
-            sheet.addCell(new Label(6, nTotalLine, "Total"))
-            def nToLine = nLine
-            sheet.addCell(new Formula(8, nTotalLine, "SUM(I2:I$nToLine)"))
+            sheet.addCell(new Label(5, nTotalLine, "Total"))
+            def nToLineHours = nLine + 1
+            sheet.addCell(new Formula(6, nTotalLine, "SUM(G2:G$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheet.addCell(new Formula(7, nTotalLine, "SUM(H2:H$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheet.addCell(new Formula(8, nTotalLine, "SUM(I2:I$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
 //            sheet.addCell(new Formula(9, nTotalLine, "SUM(J2:J$nToLine)"))
-            sheet.addCell(new Formula(10, nTotalLine, "SUM(K2:K$nToLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
-            sheet.addCell(new Formula(11, nTotalLine, "SUM(L2:L$nToLine)"))
-            sheet.addCell(new Formula(12, nTotalLine, "SUM(M2:M$nToLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
-            sheet.addCell(new Formula(13, nTotalLine, "SUM(N2:N$nToLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
-            sheet.addCell(new Formula(14, nTotalLine, "SUM(O2:O$nToLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
-            sheet.addCell(new Formula(15, nTotalLine, "SUM(P2:P$nToLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            sheet.addCell(new Formula(10, nTotalLine, "SUM(K2:K$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            sheet.addCell(new Formula(11, nTotalLine, "SUM(L2:L$nToLineHours)"))
+            sheet.addCell(new Formula(12, nTotalLine, "SUM(M2:M$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            sheet.addCell(new Formula(13, nTotalLine, "SUM(N2:N$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            sheet.addCell(new Formula(14, nTotalLine, "SUM(O2:O$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            sheet.addCell(new Formula(15, nTotalLine, "SUM(P2:P$nToLineHours)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
             //Counts
             def nCountLine = nTotalLine + 1
-            sheet.addCell(new Label(6, nCountLine, "Count"))
-            nToLine = nLine
-            sheet.addCell(new Formula(8, nCountLine, "COUNT(I2:I$nToLine)"))
+            sheet.addCell(new Label(5, nCountLine, "Count"))
+            sheet.addCell(new Formula(6, nCountLine, "COUNT(G2:G$nToLineHours)"))
+            sheet.addCell(new Formula(7, nCountLine, "COUNT(H2:H$nToLineHours)"))
+            sheet.addCell(new Formula(8, nCountLine, "COUNT(I2:I$nToLineHours)"))
 //            sheet.addCell(new Formula(9, nCountLine, "COUNT(J2:J$nToLine)"))
-            sheet.addCell(new Formula(10, nCountLine, "COUNT(K2:K$nToLine)"))
-            sheet.addCell(new Formula(11, nCountLine, "COUNT(L2:L$nToLine)"))
-            sheet.addCell(new Formula(12, nCountLine, "COUNT(M2:M$nToLine)"))
-            sheet.addCell(new Formula(13, nCountLine, "COUNT(N2:N$nToLine)"))
-            sheet.addCell(new Formula(14, nCountLine, "COUNT(O2:O$nToLine)"))
-            sheet.addCell(new Formula(15, nCountLine, "COUNT(P2:P$nToLine)"))
+            sheet.addCell(new Formula(10, nCountLine, "COUNT(K2:K$nToLineHours)"))
+            sheet.addCell(new Formula(11, nCountLine, "COUNT(L2:L$nToLineHours)"))
+            sheet.addCell(new Formula(12, nCountLine, "COUNT(M2:M$nToLineHours)"))
+            sheet.addCell(new Formula(13, nCountLine, "COUNT(N2:N$nToLineHours)"))
+            sheet.addCell(new Formula(14, nCountLine, "COUNT(O2:O$nToLineHours)"))
+            sheet.addCell(new Formula(15, nCountLine, "COUNT(P2:P$nToLineHours)"))
+
+            //Headers
+            sheetDays.addCell(new Label(0, 0, "Day"))
+            sheetDays.addCell(new Label(1, 0, "Consumption"))
+            sheetDays.addCell(new Label(2, 0, "Production"))
+            sheetDays.addCell(new Label(3, 0, "Delta"))
+            sheetDays.addCell(new Label(4, 0, "Costs"))
+            nLine = 0
+            mapDays.each{ day ->
+                nLine++
+                sheetDays.addCell(new Label(0, nLine, day.Day))
+                sheetDays.addCell(new Number(1, nLine, day.Consumption))
+                sheetDays.addCell(new Number(2, nLine, day.Production))
+                sheetDays.addCell(new Number(3, nLine, day.Delta))
+                sheetDays.addCell(new Number(4, nLine, day.Costs))
+            }
+            //Totals
+            def nToLineDays = nLine + 1
+            nTotalLine = nLine + 2
+            sheetDays.addCell(new Label(0, nTotalLine, "Total"))
+            sheetDays.addCell(new Formula(0,nTotalLine + 1, "COUNT(E2:E$nToLineDays)"))
+            sheetDays.addCell(new Formula(1, nTotalLine, "SUM(B2:B$nToLineDays)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetDays.addCell(new Formula(2, nTotalLine, "SUM(C2:C$nToLineDays)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetDays.addCell(new Formula(3, nTotalLine, "SUM(D2:D$nToLineDays)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetDays.addCell(new Formula(4, nTotalLine, "SUM(E2:E$nToLineDays)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+
+            //Headers
+            sheetMonths.addCell(new Label(0, 0, "Month"))
+            sheetMonths.addCell(new Label(1, 0, "Consumption"))
+            sheetMonths.addCell(new Label(2, 0, "Production"))
+            sheetMonths.addCell(new Label(3, 0, "Delta"))
+            sheetMonths.addCell(new Label(4, 0, "Costs"))
+            nLine = 0
+            mapMonths.each{ month ->
+                nLine++
+                sheetMonths.addCell(new Label(0, nLine, month.Month))
+                sheetMonths.addCell(new Number(1, nLine, month.Consumption))
+                sheetMonths.addCell(new Number(2, nLine, month.Production))
+                sheetMonths.addCell(new Number(3, nLine, month.Delta))
+                sheetMonths.addCell(new Number(4, nLine, month.Costs))
+            }
+
+            //Totals
+            def nToLineMonths = nLine + 1
+            nTotalLine = nLine + 2
+            sheetMonths.addCell(new Label(0, nTotalLine, "Total"))
+            sheetMonths.addCell(new Formula(0,nTotalLine + 1, "COUNT(E2:E$nToLineMonths)"))
+            sheetMonths.addCell(new Formula(1, nTotalLine, "SUM(B2:B$nToLineMonths)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetMonths.addCell(new Formula(2, nTotalLine, "SUM(C2:C$nToLineMonths)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetMonths.addCell(new Formula(3, nTotalLine, "SUM(D2:D$nToLineMonths)", new WritableCellFormat(new jxl.write.NumberFormat("#.000"))))
+            sheetMonths.addCell(new Formula(4, nTotalLine, "SUM(E2:E$nToLineMonths)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+
+            sheetTotals.addCell(new Label(1, 0, "Aantal"))
+            sheetTotals.addCell(new Label(3, 0, "Consumption"))
+            sheetTotals.addCell(new Label(4, 0, "Production"))
+            sheetTotals.addCell(new Label(5, 0, "Delta"))
+            sheetTotals.addCell(new Label(6, 0, "Costs"))
+
+            sheetTotals.addCell(new Label(0, 1, "Uren"))
+            sheetTotals.addCell(new Formula(3, 1, "Hours!G$nCountLine)"))
+            sheetTotals.addCell(new Formula(4, 1, "Hours!H$nCountLine)"))
+            sheetTotals.addCell(new Formula(5, 1, "Hours!I$nCountLine)"))
+            sheetTotals.addCell(new Formula(6, 1, "Hours!K$nCountLine)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            nCountLine++
+            sheetTotals.addCell(new Formula(1, 1, "Hours!I$nCountLine"))
+
+            sheetTotals.addCell(new Label(0, 2, "Dagen"))
+            nToLineDays = nToLineDays + 2
+            sheetTotals.addCell(new Formula(3, 2, "Days!B$nToLineDays)"))
+            sheetTotals.addCell(new Formula(4, 2, "Days!C$nToLineDays)"))
+            sheetTotals.addCell(new Formula(5, 2, "Days!D$nToLineDays)"))
+            sheetTotals.addCell(new Formula(6, 2, "Days!E$nToLineDays)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            nToLineDays++
+            sheetTotals.addCell(new Formula(1, 2, "Days!A$nToLineDays"))
+
+
+            sheetTotals.addCell(new Label(0, 3, "Maanden"))
+            nToLineMonths = nToLineMonths + 2
+            sheetTotals.addCell(new Formula(3, 3, "Months!B$nToLineMonths)"))
+            sheetTotals.addCell(new Formula(4, 3, "Months!C$nToLineMonths)"))
+            sheetTotals.addCell(new Formula(5, 3, "Months!D$nToLineMonths)"))
+            sheetTotals.addCell(new Formula(6, 3, "Months!E$nToLineMonths)", new WritableCellFormat(new jxl.write.NumberFormat("#.00"))))
+            nToLineMonths++
+            sheetTotals.addCell(new Formula(1, 3, "Months!A$nToLineMonths)"))
 
             workbook.write()
             workbook.close()
         }
     }
 
-    Object getColumn(iObject) {
+    Object getHourColumn(iObject) {
         switch (iObject.key.toString()) {
             case "TIMESTAMP_lOCAL": return [0, "L", "TimeStamp"]
             case "TARIFCODE": return [1, "L", "TarifCode"]
